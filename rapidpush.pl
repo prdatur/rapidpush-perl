@@ -46,6 +46,7 @@ use Pod::Usage;
 use JSON;
 use DateTime::Format::Strptime;
 use HTTP::Date;
+use Data::Dumper;
 # Grab our options.
 my %options = ();
 GetOptions(\%options, 'apikey=s',
@@ -78,7 +79,6 @@ if ($schedule eq "1970-01-01 00:00:00") {
 my $response = $browser->post( $url, [ 
 	'apikey' => $options{'apikey'},
 	'command' => 'notify',
-	'header_errors' => '1',
 	'data' => to_json({
 		title => $options{'title'},
 		message => $options{'message'},
@@ -89,30 +89,38 @@ my $response = $browser->post( $url, [
 	}),
 ]);
 
-if ($response->is_success) {
-	print "Notification successfully send.\n";
-} 
-else {
-	if ($response->code == 405) {
-                print "Invalid parameter\n";
-	}
-        elsif ($response->code == 407) {
-                print "Could not insert notification, internal error\n";
-	}
-        elsif ($response->code == 408) {
-                print "Invalid API-Key.\n";
-	}
-        elsif ($response->code == 409) {
-                print "Invalid command\n";
-	}
-	elsif ($response->code == 410) {
-                print "API rate limit exceeded\n";
-	}
-        else {
-                print "Unknown error while sending RapidPush notification\n";
+my $json_response = decode_json $response->content;
+
+if (exists $json_response->{'code'}) {
+	if ($json_response->{'code'} == 200) {
+		if ($options{'schedule_at'} eq "") {
+			print "Notification successfully send.\n";
+		}
+		else {
+			print "Notification successfully scheduled.\n";
+		}
+	} 
+	else {
+		print $json_response->{'desc'} . " (" . $json_response->{'code'} . ")\n";
 	}
 }
+else {
+	for my $apikey (keys(%$json_response)) {
+		print "Response for API-Key \"" . $apikey . "\": ";
 
+		if ($json_response->{$apikey}->{'code'} == 200) {
+			if ($options{'schedule_at'} eq "") {
+				print "Notification successfully send.\n";
+			}
+			else {
+				print "Notification successfully scheduled.\n";
+			}
+		}
+		else {
+			print $json_response->{$apikey}->{'desc'} . " (" . $json_response->{$apikey}->{'code'} . ")\n";
+		}
+	}
+}
 __END__
 
 =head1 NAME 
@@ -124,10 +132,10 @@ RapidPush - Send push notifications
 rapidpush.pl [options] notification_data
 
  Options:
-   -apikey=...        the RapidPush API key.
+   -apikey=...        the RapidPush API key, multiple api keys seperated by comma. (required)
 
  Notification data:
-   -message=...       The text of the notification.
+   -message=...       The text of the notification. (required)
    -category=...      The category (optional).
    -title=...         The title (optional).
    -group=...         The device group (optional).
