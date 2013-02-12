@@ -61,7 +61,7 @@ $options{'priority'} ||= 2;
 
 pod2usage(-message => "$0: Message is required") if (!exists($options{'message'}));
 pod2usage(-message => "$0: The apikey is required") if (!exists($options{'apikey'}));
-pod2usage(-message => "$0: Priority must be between 0 and 6 (0=debug, 1=notice, 2=normal, 3=warning, 4=alert, 5=critical, 6=emergency)") if ($options{'priority'} < 0 || $options{'priority'} > 6);
+pod2usage(-message => "$0: Priority must be between -1 and 6 (without 0) (-1=debug, 1=notice, 2=normal, 3=warning, 4=alert, 5=critical, 6=emergency)") if ($options{'priority'} < -1 || $options{'priority'} > 6);
 
 
 # Generate our HTTP request.
@@ -74,6 +74,10 @@ if (!($options{'schedule_at'} eq "")) {
 
 if ($schedule eq "1970-01-01 00:00:00") {
 	$schedule = "";
+}
+
+if ($options{'priority'} == -1) {
+	$options{'priority'} = 0;
 }
 
 my $response = $browser->post( $url, [ 
