@@ -50,18 +50,23 @@ use Data::Dumper;
 # Grab our options.
 my %options = ();
 GetOptions(\%options, 'apikey=s',
-		  'category=s', 'title=s', 'message=s', 'group=s', 'schedule_at=s',
+		  'category=s', 'channel=s', 'title=s', 'message=s', 'group=s', 'schedule_at=s',
 		  'priority:i') or pod2usage(2);
 
 $options{'category'} ||= "RP-Perl";
 $options{'group'} ||= "";
+$options{'channel'} ||= "";
 $options{'title'} ||= "New event";
 $options{'schedule_at'} ||= "";
 $options{'priority'} ||= 2;
 
 pod2usage(-message => "$0: Message is required") if (!exists($options{'message'}));
 pod2usage(-message => "$0: The apikey is required") if (!exists($options{'apikey'}));
-pod2usage(-message => "$0: Priority must be between -1 and 6 (without 0) (-1=debug, 1=notice, 2=normal, 3=warning, 4=alert, 5=critical, 6=emergency)") if ($options{'priority'} < -1 || $options{'priority'} > 6);
+
+# Only check correct priority if we send a normal notification, not a channel broadcast.
+if (($options{'channel'} eq "")) {
+	pod2usage(-message => "$0: Priority must be between -1 and 6 (without 0) (-1=debug, 1=notice, 2=normal, 3=warning, 4=alert, 5=critical, 6=emergency)") if ($options{'priority'} < -1 || $options{'priority'} > 6);
+}
 
 
 # Generate our HTTP request.
@@ -79,20 +84,31 @@ if ($schedule eq "1970-01-01 00:00:00") {
 if ($options{'priority'} == -1) {
 	$options{'priority'} = 0;
 }
-
-my $response = $browser->post( $url, [ 
-	'apikey' => $options{'apikey'},
-	'command' => 'notify',
-	'data' => to_json({
-		title => $options{'title'},
-		message => $options{'message'},
-		category => $options{'category'},
-		group => $options{'group'},
-		schedule_at => $schedule,
-		priority => $options{'priority'},
-	}),
-]);
-
+if (($options{'channel'} eq "")) {
+	my $response = $browser->post( $url, [ 
+		'apikey' => $options{'apikey'},
+		'command' => 'notify',
+		'data' => to_json({
+			title => $options{'title'},
+			message => $options{'message'},
+			category => $options{'category'},
+			group => $options{'group'},
+			schedule_at => $schedule,
+			priority => $options{'priority'},
+		}),
+	]);
+}
+else {
+	my $response = $browser->post( $url, [ 
+		'apikey' => $options{'apikey'},
+		'command' => 'broadcast',
+		'data' => to_json({
+			title => $options{'title'},
+			message => $options{'message'},
+			channel => $options{'channel'},
+		}),
+	]);
+}
 my $json_response = decode_json $response->content;
 
 if (exists $json_response->{'code'}) {
@@ -144,7 +160,8 @@ rapidpush.pl [options] notification_data
    -title=...         The title (optional).
    -group=...         The device group (optional).
    -priority=...      The priority, a number between 0 and 6 (optional).
-   -schedule_at=...    The schedule time, given in Y-m-d H:i:00 (2013-01-10 23:05:00) will notify at the given time and date (optional).
+   -schedule_at=...   The schedule time, given in Y-m-d H:i:00 (2013-01-10 23:05:00) will notify at the given time and date (optional).
+   -channel=...       The broadcast channel, if provided it will send a broadcast notification to the channel instead a normal one to your devices (optional).
 
 =head1 DESCRIPTION
 
