@@ -73,6 +73,7 @@ if (($options{'channel'} eq "")) {
 my $browser = LWP::UserAgent->new;
 my $url = 'https://rapidpush.net/api';
 my $schedule = "";
+my $response;
 if (!($options{'schedule_at'} eq "")) {
 	$schedule = POSIX::strftime("%Y-%m-%d %H:%M:00", gmtime(str2time($options{'schedule_at'})))
 }
@@ -85,7 +86,7 @@ if ($options{'priority'} == -1) {
 	$options{'priority'} = 0;
 }
 if (($options{'channel'} eq "")) {
-	my $response = $browser->post( $url, [ 
+	$response = $browser->post( $url, [ 
 		'apikey' => $options{'apikey'},
 		'command' => 'notify',
 		'data' => to_json({
@@ -99,7 +100,7 @@ if (($options{'channel'} eq "")) {
 	]);
 }
 else {
-	my $response = $browser->post( $url, [ 
+	$response = $browser->post( $url, [ 
 		'apikey' => $options{'apikey'},
 		'command' => 'broadcast',
 		'data' => to_json({
